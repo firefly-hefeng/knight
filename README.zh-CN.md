@@ -151,10 +151,34 @@ cd web && npm install && cd ..
 
 ### 启动
 
-Knight 提供三种启动模式，适配不同使用场景：
+Knight 提供**四种启动模式**，适配各种使用场景：
 
-#### 1. 网关 + 网页（桌面端推荐）
-同时启动统一网关和网页仪表盘：
+#### 1. 仅网页（纯 Web 仪表盘）
+只启动网页前端——连接已有的网关：
+
+```bash
+python3 launch.py web --web-port 3000
+```
+- 网页仪表盘: `http://localhost:3000`
+
+#### 2. 终端 CLI（纯命令行）
+完全通过终端运行 Knight，支持交互式和单次执行模式：
+
+```bash
+# 交互式模式
+python3 launch.py cli
+
+# 单次执行模式（直接执行单个任务）
+python3 launch.py cli --request "将鉴权模块重构为微服务"
+```
+
+CLI 提供：
+- 交互式 REPL，可持续提交任务
+- 单次执行模式，适合脚本化和自动化
+- 直接输出到 stdout，支持管道和重定向
+
+#### 3. 网关 + 网页（桌面端推荐）
+同时启动统一网关和网页仪表盘（默认模式）：
 
 ```bash
 python3 launch.py both
@@ -162,8 +186,8 @@ python3 launch.py both
 - 网关 API: `http://localhost:8080`
 - 网页仪表盘: `http://localhost:3000`
 
-#### 2. 仅网关（无头模式 / 终端 / 手机远程）
-将 Knight 作为后台编排器运行，完全通过终端或任意 HTTP 客户端控制：
+#### 4. 仅网关（无头模式 / 手机远程）
+将 Knight 作为后台编排器通过 HTTP 控制：
 
 ```bash
 python3 launch.py gateway --gateway-port 8080 --api-key your_secret_key
@@ -188,13 +212,6 @@ curl http://localhost:8080/api/v1/tasks/{task_id}/stream \
 ```
 
 由于网关绑定在 `0.0.0.0`，你也可以在同一局域网下用手机或平板访问 `http://<你的电脑IP>:8080` 进行管理。
-
-#### 3. 仅网页
-如果你已在其他地方运行了网关：
-
-```bash
-python3 launch.py web --web-port 3000
-```
 
 ---
 
@@ -246,29 +263,23 @@ python3 launch.py web --web-port 3000
 
 ## 致谢
 
-Knight System 站在巨人的肩膀上。我们深深感谢开源社区以及那些塑造了我们架构、工程模式和对智能体系统理解的先驱项目。
+Knight System 站在巨人的肩膀上。我们架构、工程模式和对智能体系统理解在很大一部分都收到优秀的开源项目的启发和借鉴了其中很多出色的设计。
 
 ### Agent 编排与协作
-- **[Anthropic Claude Code](https://www.anthropic.com/)** — 展示了生产级编程 Agent 所能达到的高度。`reference/cc-recovered-main` 中的逆向工程源码为我们的 Tool 抽象层、权限系统和非交互式 CLI 调用模式提供了重要参考。
-- **[OpenClaw](https://openclaw.ai)** — 其优雅的统一网关设计哲学深刻影响了 Knight。我们的网关优先架构、多端管理能力和本地优先控制平面都深受 OpenClaw 个人 AI 助手设计思路的启发。
-- **[LangChain / LangGraph](https://www.langchain.com/)** — 推动了 Agent 编排框架的发展，确立了推理步骤链式调用和工具使用的重要模式。
-- **[CrewAI](https://www.crewai.com/)** — 在多 Agent 角色协作方面做出了开创性工作，影响了我们对于 Agent 专业化与任务委派机制的思考。
-- **[AutoGPT](https://github.com/Significant-Gravitas/AutoGPT)** — 早期对自主 Agent 循环和自我驱动任务执行的勇敢探索，为整个行业铺平了道路。
+- **[OpenClaw](https://openclaw.ai)** — 其优雅的统一网关设计哲学和 agent 主要探索能力的开发深刻影响了 Knight。我们的网关优先架构、多端管理能力和本地优先控制平面都深受 OpenClaw 个人 AI 助手设计思路的启发。
+- **[LangChain / LangGraph](https://www.langchain.com/)** — 在我们的推理步骤链式调用和工具使用的最主要的模式。
+- **[CrewAI](https://www.crewai.com/)** — 在多 Agent 角色协作方面的思想，影响了我们对于 Agent 专业化与任务委派机制的思考。
+- **[AutoGPT](https://github.com/Significant-Gravitas/AutoGPT)** — 早期对自主 Agent 循环和自我驱动任务执行的勇敢探索，也是我们工程化学习的重要目标。
 
 ### 记忆与状态管理
-- **[MemGPT / Letta](https://letta.com/)** — 在 LLM 系统记忆管理方面做出了突破性贡献，尤其是分层记忆（核心记忆 vs 归档记忆）和自我编辑记忆检索机制，直接启发了我们的状态压缩与上下文 surfacing 策略。
-- **[Temporal](https://temporal.io/)** — 提出了「持久化执行」（Durable Execution）范式。我们的工作流引擎、检查点机制和 Saga 补偿模式直接借鉴了 Temporal 的工作流状态机与 Activity 抽象（`reference/temporal-sdk-python`）。
+- **[MemGPT / Letta](https://letta.com/)** — 我们学习和参考了分层记忆（核心记忆 vs 归档记忆）和自我编辑记忆检索机制，直接启发了我们的状态压缩与上下文 surfacing 策略。
+- **[Temporal](https://temporal.io/)** — 我们的工作流引擎、检查点机制和 Saga 补偿模式直接借鉴了 Temporal 的工作流状态机与 Activity 抽象。
 
 ### 工程与基础设施参考
-- **[Celery](https://docs.celeryq.dev/)** — 久经考验的任务队列模式、DAG 构造（`group`、`chain`、`chord`）以及结果聚合回调机制，塑造了我们的任务分发层设计。
+- **[Celery](https://docs.celeryq.dev/)** — 久经考验的任务队列模式、DAG 构造（group、chain、chord）以及结果聚合回调机制，塑造了我们的任务分发层设计。
 - **[Ray](https://www.ray.io/)** — 分布式 Actor 模式和集群调度概念为我们的 Agent 池设计提供了重要参考。
-- **[CopilotKit](https://www.copilotkit.ai/)** — AG-UI 协议和生成式 UI 模式影响了我们的前端与 Agent 交互模型。
-- **[shadcn/ui](https://ui.shadcn.com/)** — 精美、可组合 React 组件库，为我们的极简 Web 界面提供了坚实基础。
-
-### 模型提供方
-- **[Anthropic](https://www.anthropic.com/)** — Claude 系列模型及模型上下文协议（MCP）。
-- **[Moonshot AI](https://www.moonshot.cn/)** — Kimi 系列模型。
-- **[OpenAI](https://openai.com/)** — Codex 及 GPT 系列模型。
+- **[CopilotKit](https://www.copilotkit.ai/)** — AG-UI 协议和生成式 UI 模式影响了我们前端的选型。
+- **[shadcn/ui](https://ui.shadcn.com/)** — 精美、可组合 React 组件库，为我们的 Web 界面提供了坚实基础。
 
 ---
 

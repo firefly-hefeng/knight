@@ -151,10 +151,34 @@ cd web && npm install && cd ..
 
 ### Launch
 
-Knight provides three launch modes to fit your workflow:
+Knight provides **four launch modes** to fit every workflow:
 
-#### 1. Gateway + Web (Recommended for Desktop)
-Start both the unified gateway and the web dashboard:
+#### 1. Web Only (Pure Web Dashboard)
+Start only the web frontend—connects to an existing gateway:
+
+```bash
+python3 launch.py web --web-port 3000
+```
+- Web Dashboard: `http://localhost:3000`
+
+#### 2. Terminal CLI (Pure Command Line)
+Run Knight entirely from the terminal with interactive or one-shot mode:
+
+```bash
+# Interactive mode
+python3 launch.py cli
+
+# One-shot mode (execute a single request)
+python3 launch.py cli --request "Refactor the auth module into a microservice"
+```
+
+The CLI provides:
+- Interactive REPL for continuous task submission
+- One-shot execution for scripting and automation
+- Direct output to stdout for piping and redirection
+
+#### 3. Gateway + Web (Desktop Recommended)
+Start both the unified gateway and web dashboard (default mode):
 
 ```bash
 python3 launch.py both
@@ -162,8 +186,8 @@ python3 launch.py both
 - Gateway API: `http://localhost:8080`
 - Web Dashboard: `http://localhost:3000`
 
-#### 2. Gateway Only (Headless / Terminal / Mobile Remote)
-Run Knight as a headless orchestrator and control it entirely from the terminal or any HTTP client:
+#### 4. Gateway Only (Headless / Mobile Remote)
+Run Knight as a headless orchestrator controlled via HTTP:
 
 ```bash
 python3 launch.py gateway --gateway-port 8080 --api-key your_secret_key
@@ -188,13 +212,6 @@ curl http://localhost:8080/api/v1/tasks/{task_id}/stream \
 ```
 
 Because the gateway binds to `0.0.0.0`, you can also open `http://<your-pc-ip>:8080` from your phone or tablet on the same network.
-
-#### 3. Web Only
-If you already have a gateway running elsewhere:
-
-```bash
-python3 launch.py web --web-port 3000
-```
 
 ---
 
@@ -246,29 +263,23 @@ python3 launch.py web --web-port 3000
 
 ## Acknowledgments
 
-Knight System stands on the shoulders of giants. We are deeply grateful to the open-source community and the pioneering projects that have shaped our architecture, engineering patterns, and understanding of agentic systems.
+Knight System stands on the shoulders of giants. Our architecture, engineering patterns, and understanding of agentic systems have been significantly shaped by outstanding open-source projects that pioneered many excellent designs.
 
 ### Agent Orchestration & Collaboration
-- **[Anthropic Claude Code](https://www.anthropic.com/)** — For demonstrating what a production-grade coding agent can achieve, and for the recovered source in `reference/cc-recovered-main` that informed our Tool abstraction, permission systems, and non-interactive CLI invocation patterns.
-- **[OpenClaw](https://openclaw.ai)** — For the elegant unified-gateway design philosophy. Knight's gateway-first architecture, multi-endpoint management, and local-first control plane are heavily inspired by OpenClaw's approach to personal AI assistants.
-- **[LangChain / LangGraph](https://www.langchain.com/)** — For advancing the state of agent orchestration frameworks and establishing patterns for chaining reasoning steps and tool use.
-- **[CrewAI](https://www.crewai.com/)** — For pioneering multi-agent role-based collaboration, which influenced our thinking about agent specialization and delegation.
-- **[AutoGPT](https://github.com/Significant-Gravitas/AutoGPT)** — For the early exploration of autonomous agent loops and self-directed task execution.
+- **[OpenClaw](https://openclaw.ai)** — Its elegant unified-gateway design philosophy and exploration of agent capabilities profoundly influenced Knight. Our gateway-first architecture, multi-endpoint management, and local-first control plane are deeply inspired by OpenClaw's approach to personal AI assistants.
+- **[LangChain / LangGraph](https://www.langchain.com/)** — The primary patterns we adopted for chaining reasoning steps and tool usage.
+- **[CrewAI](https://www.crewai.com/)** — For multi-agent role-based collaboration, which shaped our thinking about agent specialization and task delegation.
+- **[AutoGPT](https://github.com/Significant-Gravitas/AutoGPT)** — For the early exploration of autonomous agent loops and self-driven task execution, serving as an important engineering learning goal.
 
 ### Memory & State Management
-- **[MemGPT / Letta](https://letta.com/)** — For groundbreaking work on memory management in LLM systems, particularly hierarchical memory (core vs. archival) and self-editing memory retrieval, which informed our state compression and context surfacing strategies.
-- **[Temporal](https://temporal.io/)** — For the durable execution paradigm. Our workflow engine, checkpointing, and saga-style compensation patterns draw directly from Temporal's workflow state machine and activity abstractions (`reference/temporal-sdk-python`).
+- **[MemGPT / Letta](https://letta.com/)** — We studied and referenced their hierarchical memory (core vs. archival) and self-editing memory retrieval mechanisms, which directly inspired our state compression and context surfacing strategies.
+- **[Temporal](https://temporal.io/)** — Our workflow engine, checkpointing, and Saga compensation patterns are directly informed by Temporal's workflow state machine and Activity abstractions.
 
 ### Engineering & Infrastructure References
-- **[Celery](https://docs.celeryq.dev/)** — For battle-tested task queue patterns, DAG constructs (`group`, `chain`, `chord`), and result aggregation callbacks that shaped our task distribution layer.
-- **[Ray](https://www.ray.io/)** — For distributed Actor patterns and cluster scheduling concepts referenced in our agent pool design.
-- **[CopilotKit](https://www.copilotkit.ai/)** — For the AG-UI Protocol and generative UI patterns that influenced our frontend-agent interaction model.
-- **[shadcn/ui](https://ui.shadcn.com/)** — For the beautiful, composable React components that power our minimal web interface.
-
-### Model Providers
-- **[Anthropic](https://www.anthropic.com/)** — Claude models and the Model Context Protocol (MCP).
-- **[Moonshot AI](https://www.moonshot.cn/)** — Kimi models.
-- **[OpenAI](https://openai.com/)** — Codex and GPT models.
+- **[Celery](https://docs.celeryq.dev/)** — Battle-tested task queue patterns, DAG constructs (group, chain, chord), and result aggregation callbacks shaped our task distribution layer.
+- **[Ray](https://www.ray.io/)** — Distributed Actor patterns and cluster scheduling concepts provided important references for our Agent pool design.
+- **[CopilotKit](https://www.copilotkit.ai/)** — The AG-UI Protocol and generative UI patterns influenced our frontend technology choices.
+- **[shadcn/ui](https://ui.shadcn.com/)** — Beautiful, composable React components that provide a solid foundation for our web interface.
 
 ---
 

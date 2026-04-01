@@ -2,8 +2,11 @@
 """
 Knight 启动脚本
 
-同时启动 Gateway 和 Web 前端
-或者单独启动其中之一
+四种启动模式：
+1. web - 仅 Web 前端
+2. cli - 仅终端 CLI
+3. both - Gateway + Web 前端（默认）
+4. gateway - 仅 Gateway
 """
 import asyncio
 import argparse
@@ -42,6 +45,38 @@ def start_web(port: int = 3000):
     )
 
 
+async def start_cli(request: str = None):
+    """启动终端 CLI 模式"""
+    from core import WorkflowEngine
+    
+    engine = WorkflowEngine()
+    
+    if request:
+        # 直接执行单次任务
+        print(f"🏰 Knight executing: {request}\n")
+        result = await engine.execute(request)
+        print(f"\n✅ Result:\n{result}")
+    else:
+        # 交互式 CLI
+        print("🏰 Knight Terminal CLI")
+        print("输入你的任务描述，或输入 'quit' 退出\n")
+        while True:
+            try:
+                user_input = input("> ").strip()
+                if user_input.lower() in ('quit', 'exit', 'q'):
+                    break
+                if not user_input:
+                    continue
+                print()
+                result = await engine.execute(user_input)
+                print(f"\n✅ Result:\n{result}\n")
+            except KeyboardInterrupt:
+                print("\n\n👋 Goodbye!")
+                break
+            except EOFError:
+                break
+
+
 async def start_both(gateway_port: int = 8080, web_port: int = 3000):
     """同时启动 Gateway 和 Web"""
     # 启动 Gateway（异步）
@@ -67,10 +102,16 @@ def main():
     parser = argparse.ArgumentParser(description="Knight Launcher")
     parser.add_argument(
         "mode",
-        choices=["gateway", "web", "both"],
+        choices=["web", "cli", "both", "gateway"],
         default="both",
         nargs="?",
-        help="启动模式: gateway (仅网关), web (仅前端), both (两者)"
+        help="启动模式: web (仅前端), cli (仅终端), both (网关+前端), gateway (仅网关)"
+    )
+    parser.add_argument(
+        "--request",
+        type=str,
+        default=None,
+        help="CLI 模式下直接执行的单次任务请求"
     )
     parser.add_argument(
         "--gateway-port",
@@ -98,17 +139,25 @@ def main():
     print("=" * 60)
     print()
     
-    if args.mode == "gateway":
-        print("Mode: Gateway Only")
-        print(f"API Endpoint: http://localhost:{args.gateway_port}")
-        print()
-        asyncio.run(start_gateway(args.gateway_port, args.api_key))
-    
-    elif args.mode == "web":
+    if args.mode == "web":
         print("Mode: Web Frontend Only")
         print(f"Web URL: http://localhost:{args.web_port}")
         print()
         start_web(args.web_port)
+    
+    elif args.mode == "cli":
+        print("Mode: Terminal CLI")
+        print()
+        if args.request:
+            asyncio.run(start_cli(args.request))
+        else:
+            asyncio.run(start_cli())
+    
+    elif args.mode == "gateway":
+        print("Mode: Gateway Only")
+        print(f"API Endpoint: http://localhost:{args.gateway_port}")
+        print()
+        asyncio.run(start_gateway(args.gateway_port, args.api_key))
     
     else:  # both
         print("Mode: Gateway + Web Frontend")
