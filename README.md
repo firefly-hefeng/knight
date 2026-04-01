@@ -41,7 +41,7 @@ Think of it as the missing command layer between you and the powerful agents alr
 The core mission of Knight System is to **maximize the problem-solving power of local AI agent clusters** and **maximize the efficiency of a single operator managing that cluster**.
 
 We address two critical gaps in today's ecosystem:
-1. **Low engineering optimization** in existing multi-agent frameworks.
+1. **Insufficient engineering optimization in multi-agent cluster architectures** — particularly unified-gateway approaches like OpenClaw that manage multiple local agents, where task orchestration, state management, and collaboration efficiency still have significant room for improvement.
 2. **Hard complexity ceilings** in single commercial agents like Claude Code when facing large, ambiguous tasks.
 
 **We do not define rigid scenarios. We do not rewrite agents.**  
