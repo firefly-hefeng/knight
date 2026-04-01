@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cinzel:wght@700&family=Crimson+Text:wght@400;600;700&family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: oklch(0.98 0.01 60);
+  --foreground: oklch(0.15 0.02 40);
+  --primary: oklch(0.65 0.12 45);
+  --primary-foreground: oklch(0.98 0.01 60);
+  --ring: oklch(0.65 0.12 45);
+  --radius: 0.75rem;
+}
+
+@layer base {
+  body {
+    @apply bg-[#FDF6E3] text-[#2C1810] antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+.font-serif { font-family: 'Crimson Text', serif; }
+.font-display { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.05em; }
+.font-numbers { font-family: 'Bebas Neue', sans-serif; }
+.font-logo { font-family: 'Poppins', sans-serif; font-weight: 600; }
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 15px rgba(212, 133, 59, 0.3); }
+  50% { box-shadow: 0 0 30px rgba(212, 133, 59, 0.5); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ink-spread {
+  0% { transform: scale(0); opacity: 1; }
+  100% { transform: scale(4); opacity: 0; }
+}
+
+.animate-float { animation: float 5s ease-in-out infinite; }
+.animate-pulse-glow { animation: pulse-glow 2.5s ease-in-out infinite; }
+.animate-slide-up { animation: slide-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+.gradient-hero {
+  background: radial-gradient(ellipse at 20% 30%, rgba(212, 133, 59, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 70%, rgba(93, 64, 55, 0.04) 0%, transparent 40%),
+    linear-gradient(180deg, #FDF6E3 0%, #F5E6D3 100%);
+}
+
+.parchment-texture {
+  background-color: #FDF6E3;
+  background-image: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(212, 133, 59, 0.02) 2px, rgba(212, 133, 59, 0.02) 4px);
+}
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #F5E6D3; }
+::-webkit-scrollbar-thumb { background: #8D6E63; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #D4853B; }
+::selection { background-color: rgba(212, 133, 59, 0.25); color: #2C1810; }
