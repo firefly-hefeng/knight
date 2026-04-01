@@ -2,11 +2,12 @@
 """
 Knight 启动脚本
 
-四种启动模式：
+五种启动模式：
 1. web - 仅 Web 前端
 2. cli - 仅终端 CLI
 3. both - Gateway + Web 前端（默认）
-4. gateway - 仅 Gateway
+4. gateway - 仅 HTTP Gateway
+5. feishu - 飞书长连接模式
 """
 import asyncio
 import argparse
@@ -19,12 +20,50 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
 async def start_gateway(port: int = 8080, api_key: str = None):
-    """启动 Gateway"""
+    """启动 HTTP Gateway"""
     from gateway.http_gateway import HTTPGateway
     
     gateway = HTTPGateway(host="0.0.0.0", port=port, api_key=api_key)
     print(f"🚀 Starting Gateway on http://0.0.0.0:{port}")
     await gateway.start()
+
+
+async def start_feishu(app_id: str = None, app_secret: str = None):
+    """启动飞书长连接网关"""
+    # 检查环境变量
+    app_id = app_id or os.environ.get("FEISHU_APP_ID")
+    app_secret = app_secret or os.environ.get("FEISHU_APP_SECRET")
+    
+    if not app_id or not app_secret:
+        print("❌ Error: Feishu credentials not configured")
+        print("\nPlease set environment variables:")
+        print("  export FEISHU_APP_ID=cli_xxxxxxxxx")
+        print("  export FEISHU_APP_SECRET=xxxxxxxxxx")
+        print("\nOr provide via command line:")
+        print("  python launch.py feishu --app-id cli_xxx --app-secret xxx")
+        sys.exit(1)
+    
+    try:
+        from adapters.feishu_adapter import FeishuKnightBridge
+    except ImportError as e:
+        print(f"❌ Error: {e}")
+        print("\nPlease install lark-oapi:")
+        print("  pip install lark-oapi")
+        sys.exit(1)
+    
+    print("🚀 Starting Feishu WebSocket Gateway")
+    print(f"   App ID: {app_id[:15]}...")
+    print("   Mode: Long Connection (WebSocket)")
+    print("\n📱 Users can now send messages to your Feishu bot")
+    print("   The bot will process tasks using Knight Core\n")
+    
+    bridge = FeishuKnightBridge(app_id, app_secret)
+    
+    try:
+        await bridge.start()
+    except KeyboardInterrupt:
+        print("\n\n👋 Shutting down Feishu gateway...")
+        await bridge.stop()
 
 
 def start_web(port: int = 3000):
@@ -102,10 +141,10 @@ def main():
     parser = argparse.ArgumentParser(description="Knight Launcher")
     parser.add_argument(
         "mode",
-        choices=["web", "cli", "both", "gateway"],
+        choices=["web", "cli", "both", "gateway", "feishu"],
         default="both",
         nargs="?",
-        help="启动模式: web (仅前端), cli (仅终端), both (网关+前端), gateway (仅网关)"
+        help="启动模式: web (仅前端), cli (仅终端), both (网关+前端), gateway (HTTP网关), feishu (飞书长连接)"
     )
     parser.add_argument(
         "--request",
@@ -130,6 +169,18 @@ def main():
         type=str,
         default=None,
         help="Gateway API Key (可选)"
+    )
+    parser.add_argument(
+        "--app-id",
+        type=str,
+        default=None,
+        help="Feishu App ID (用于飞书模式)"
+    )
+    parser.add_argument(
+        "--app-secret",
+        type=str,
+        default=None,
+        help="Feishu App Secret (用于飞书模式)"
     )
     
     args = parser.parse_args()
@@ -158,6 +209,11 @@ def main():
         print(f"API Endpoint: http://localhost:{args.gateway_port}")
         print()
         asyncio.run(start_gateway(args.gateway_port, args.api_key))
+    
+    elif args.mode == "feishu":
+        print("Mode: Feishu WebSocket Gateway")
+        print()
+        asyncio.run(start_feishu(args.app_id, args.app_secret))
     
     else:  # both
         print("Mode: Gateway + Web Frontend")

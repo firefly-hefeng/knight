@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from .schemas import (
     CreateTaskRequest, TaskResponse, TaskStatus, AgentType,
     AgentInfo, SessionInfo, Message, StreamChunk, SendMessageRequest,
-    CancelTaskRequest
+    CancelTaskRequest, TaskStep
 )
 from .state_manager import StateManager, TaskState
 from .agent_pool import AgentPool

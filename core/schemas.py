@@ -153,11 +153,21 @@ class ApiResponse(BaseModel):
     
     @classmethod
     def ok(cls, data: Any = None, request_id: str = None) -> "ApiResponse":
-        return cls(success=True, data=data, request_id=request_id)
+        return cls(
+            success=True, 
+            data=data, 
+            request_id=request_id or datetime.now().strftime("%Y%m%d%H%M%S%f")
+        )
     
     @classmethod
-    def error(cls, message: str, code: str = None, request_id: str = None) -> "ApiResponse":
-        return cls(success=False, error=message, error_code=code, request_id=request_id)
+    def fail(cls, message: str, code: str = None, request_id: str = None) -> "ApiResponse":
+        """创建错误响应（注意：方法名不能为 'error'，因为与字段名冲突）"""
+        return cls(
+            success=False, 
+            error=message, 
+            error_code=code, 
+            request_id=request_id or datetime.now().strftime("%Y%m%d%H%M%S%f")
+        )
 
 
 # ==================== 网关特定模型 ====================

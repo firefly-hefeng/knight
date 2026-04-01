@@ -213,6 +213,26 @@ curl http://localhost:8080/api/v1/tasks/{task_id}/stream \
 
 Because the gateway binds to `0.0.0.0`, you can also open `http://<your-pc-ip>:8080` from your phone or tablet on the same network.
 
+#### 5. Feishu/Lark Integration (WebSocket Long Connection)
+Run Knight with Feishu bot integration using WebSocket long connection:
+
+```bash
+# Set credentials
+export FEISHU_APP_ID="cli_xxxxxxxxxxxx"
+export FEISHU_APP_SECRET="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Start Feishu gateway
+python3 launch.py feishu
+```
+
+Users can now interact with your Knight agents directly from Feishu/Lark:
+- Send messages to the bot to create tasks
+- Use `/status` to check system status
+- Use `/agents` to list available agents
+- Use `/help` for command reference
+
+No public IP or webhook configuration required — the WebSocket long connection works behind NAT and firewalls. See [Feishu Integration Guide](docs/FEISHU_INTEGRATION.md) for detailed setup instructions.
+
 ---
 
 ## Architecture at a Glance
@@ -224,11 +244,14 @@ Because the gateway binds to `0.0.0.0`, you can also open `http://<your-pc-ip>:8
                     │
     Web Dashboard (Next.js · Tasks · Agent Queue)
                     │
+         Feishu/Lark (WebSocket)
+                    │
                     ▼
         ┌───────────────────────┐
         │   Unified Gateway     │
         │  (FastAPI · 0.0.0.0)  │
         │  Auth · Routing · SSE │
+        │  Feishu WebSocket     │
         └───────────┬───────────┘
                     │
         ┌───────────▼───────────┐

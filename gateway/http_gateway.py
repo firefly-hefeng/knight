@@ -13,12 +13,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import uvicorn
 
-from ..core.knight_core import KnightCore
-from ..core.schemas import (
-    CreateTaskRequest, TaskResponse, TaskStatus, AgentType,
-    ApiResponse, AgentInfo, SessionInfo, SendMessageRequest,
-    CancelTaskRequest, StreamChunk
-)
+try:
+    # 相对导入（当作为包的一部分时）
+    from ..core.knight_core import KnightCore
+    from ..core.schemas import (
+        CreateTaskRequest, TaskResponse, TaskStatus, AgentType,
+        ApiResponse, AgentInfo, SessionInfo, SendMessageRequest,
+        CancelTaskRequest, StreamChunk, TaskStep
+    )
+except ImportError:
+    # 绝对导入（当直接运行时）
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from core.knight_core import KnightCore
+    from core.schemas import (
+        CreateTaskRequest, TaskResponse, TaskStatus, AgentType,
+        ApiResponse, AgentInfo, SessionInfo, SendMessageRequest,
+        CancelTaskRequest, StreamChunk, TaskStep
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +130,7 @@ class HTTPGateway:
                 return ApiResponse.ok(task)
             except Exception as e:
                 logger.error(f"Create task failed: {e}")
-                return ApiResponse.error(str(e), "CREATE_TASK_FAILED")
+                return ApiResponse.fail(str(e), "CREATE_TASK_FAILED")
         
         @app.post("/api/v1/tasks/{task_id}/start", response_model=ApiResponse)
         async def start_task(task_id: str, _=Depends(verify_auth)):
@@ -126,7 +139,7 @@ class HTTPGateway:
                 task = await self.core.start_task(task_id)
                 return ApiResponse.ok(task)
             except Exception as e:
-                return ApiResponse.error(str(e), "START_TASK_FAILED")
+                return ApiResponse.fail(str(e), "START_TASK_FAILED")
         
         @app.get("/api/v1/tasks/{task_id}", response_model=ApiResponse)
         async def get_task(task_id: str, _=Depends(verify_auth)):
@@ -162,7 +175,7 @@ class HTTPGateway:
                 task = await self.core.cancel_task(request)
                 return ApiResponse.ok(task)
             except Exception as e:
-                return ApiResponse.error(str(e), "CANCEL_TASK_FAILED")
+                return ApiResponse.fail(str(e), "CANCEL_TASK_FAILED")
         
         @app.get("/api/v1/tasks/{task_id}/stream")
         async def stream_task(task_id: str, _=Depends(verify_auth)):

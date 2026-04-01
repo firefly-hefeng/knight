@@ -1,8 +1,18 @@
 """Agent Pool - 管理商用Agent实例"""
 import asyncio
+import sys
+import os
 from typing import Literal
-from ..adapters.claude_adapter import ClaudeAdapter, TaskResult
-from ..adapters.kimi_adapter import KimiAdapter
+
+try:
+    # 相对导入
+    from ..adapters.claude_adapter import ClaudeAdapter, TaskResult
+    from ..adapters.kimi_adapter import KimiAdapter
+except ImportError:
+    # 绝对导入
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from adapters.claude_adapter import ClaudeAdapter, TaskResult
+    from adapters.kimi_adapter import KimiAdapter
 
 
 AgentType = Literal['claude', 'kimi']
