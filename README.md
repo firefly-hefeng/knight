@@ -9,14 +9,19 @@
 </p>
 
 <p align="center">
-  <img src="assets/ivon.png" alt="Knight Mascot" width="80"/>
+  <a href="README.zh-CN.md"><img src="https://img.shields.io/badge/简体中文-2ea44f?style=for-the-badge&logo=googletranslate&logoColor=white" alt="简体中文"/></a>
 </p>
 
 <p align="center">
-  <a href="README.zh-CN.md">简体中文</a> •
-  <a href="#design-philosophy">Design Philosophy</a> •
-  <a href="#workflow">Workflow</a> •
-  <a href="#quick-start">Quick Start</a>
+  <img src="https://img.shields.io/badge/Python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python"/>
+  <img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js&logoColor=white" alt="Next.js"/>
+  <img src="https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"/>
+  <img src="https://img.shields.io/badge/SSE-Streaming-FF6F61?style=flat-square&logo=serverfault&logoColor=white" alt="SSE Streaming"/>
+  <img src="https://img.shields.io/badge/Agent-Cluster-8A2BE2?style=flat-square&logo=robotframework&logoColor=white" alt="Agent Cluster"/>
+  <img src="https://img.shields.io/badge/Local-First-00C853?style=flat-square&logo=homeassistant&logoColor=white" alt="Local First"/>
+  <img src="https://img.shields.io/badge/Mobile-Ready-FF9500?style=flat-square&logo=apple&logoColor=white" alt="Mobile Ready"/>
+  <img src="https://img.shields.io/badge/Terminal+%20Web-007ACC?style=flat-square&logo=windowsterminal&logoColor=white" alt="Terminal + Web"/>
+  <img src="https://img.shields.io/badge/License-MIT-green.svg?style=flat-square" alt="License"/>
 </p>
 
 ---
@@ -36,7 +41,7 @@ Think of it as the missing command layer between you and the powerful agents alr
 The core mission of Knight System is to **maximize the problem-solving power of local AI agent clusters** and **maximize the efficiency of a single operator managing that cluster**.
 
 We address two critical gaps in today's ecosystem:
-1. **Low engineering optimization** in existing multi-agent frameworks (e.g., OpenClaw-like approaches).
+1. **Low engineering optimization** in existing multi-agent frameworks.
 2. **Hard complexity ceilings** in single commercial agents like Claude Code when facing large, ambiguous tasks.
 
 **We do not define rigid scenarios. We do not rewrite agents.**  
@@ -66,12 +71,11 @@ A purpose-built memory layer compresses and surfaces the right context at the ri
 ### 4. Engineering Best Practices by Default
 Knight evolves by adopting robust software engineering patterns: structured task graphs, dependency management, health checks, rollback mechanisms, and observability—so that agent collaboration is reliable, not fragile.
 
-### 5. One-Click Deployment & Minimal UI
-A radically simple web frontend gives you two pages and nothing more:
-- **Tasks Page** — Create missions and watch execution status in real time.
-- **Agent Queue Page** — See which local agents are detected, available, and busy.
-
-Inspired by gateway-management designs like OpenClaw, Knight enables convenient multi-endpoint control with minimal setup.
+### 5. Unified Gateway — Terminal, Web & Mobile
+Knight exposes a single **Unified Gateway** that serves every client:
+- **Terminal / CLI** — Control everything from the command line via `curl` or custom scripts.
+- **Web Dashboard** — A radically simple two-page interface for task and agent management.
+- **Mobile Access** — The gateway binds to `0.0.0.0` by default, so you can monitor and manage your agent army from any device on your network, including your phone or tablet.
 
 ---
 
@@ -131,7 +135,7 @@ No clutter. No unnecessary dashboards. Just the two things you actually need.
 - Node.js 18+ (for the frontend)
 - One or more local AI agents installed (e.g., Claude Code, Kimi Code)
 
-### Install & Launch
+### Install
 
 ```bash
 # Clone the repository
@@ -143,45 +147,100 @@ pip install -r api/requirements.txt
 
 # Install frontend dependencies
 cd web && npm install && cd ..
-
-# Start both gateway and web frontend
-python3 launch.py both
 ```
 
-Visit `http://localhost:3000` to open the Task Page and begin building your agent army.
+### Launch
+
+Knight provides three launch modes to fit your workflow:
+
+#### 1. Gateway + Web (Recommended for Desktop)
+Start both the unified gateway and the web dashboard:
+
+```bash
+python3 launch.py both
+```
+- Gateway API: `http://localhost:8080`
+- Web Dashboard: `http://localhost:3000`
+
+#### 2. Gateway Only (Headless / Terminal / Mobile Remote)
+Run Knight as a headless orchestrator and control it entirely from the terminal or any HTTP client:
+
+```bash
+python3 launch.py gateway --gateway-port 8080 --api-key your_secret_key
+```
+
+Then interact via `curl`:
+
+```bash
+# Create a task
+curl -X POST http://localhost:8080/api/v1/tasks \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your_secret_key" \
+  -d '{"name":"Refactor auth module","description":"Split the auth logic into a separate service"}'
+
+# List agents
+curl http://localhost:8080/api/v1/agents \
+  -H "Authorization: Bearer your_secret_key"
+
+# Stream task progress (SSE)
+curl http://localhost:8080/api/v1/tasks/{task_id}/stream \
+  -H "Authorization: Bearer your_secret_key"
+```
+
+Because the gateway binds to `0.0.0.0`, you can also open `http://<your-pc-ip>:8080` from your phone or tablet on the same network.
+
+#### 3. Web Only
+If you already have a gateway running elsewhere:
+
+```bash
+python3 launch.py web --web-port 3000
+```
 
 ---
 
 ## Architecture at a Glance
 
 ```
-┌─────────────────────────────────────────┐
-│         Knight Web Frontend             │
-│    (Next.js · Tasks · Agent Queue)      │
-└─────────────────┬───────────────────────┘
-                  │ HTTP / WebSocket
-┌─────────────────▼───────────────────────┐
-│         Knight API Gateway              │
-│   (Unified entry · Auth · Routing)      │
-└─────────────────┬───────────────────────┘
-                  │
-┌─────────────────▼───────────────────────┐
-│           Knight Core                   │
-│  ┌─────────┐ ┌─────────┐ ┌──────────┐  │
-│  │ Planner │ │ Memory  │ │ Pipeline │  │
-│  └─────────┘ └─────────┘ └──────────┘  │
-│  ┌─────────┐ ┌─────────┐ ┌──────────┐  │
-│  │ Agent   │ │ State   │ │ Observer │  │
-│  │ Pool    │ │ Manager │ │          │  │
-│  └─────────┘ └─────────┘ └──────────┘  │
-└─────────────────┬───────────────────────┘
-        ┌─────────┴─────────┐
-        ▼                   ▼
-   ┌─────────┐         ┌─────────┐
-   │ Claude  │         │  Kimi   │
-   │  Code   │         │  Code   │
-   └─────────┘         └─────────┘
+         Terminal (curl / CLI scripts)
+                    │
+         Mobile / Tablet (same network)
+                    │
+    Web Dashboard (Next.js · Tasks · Agent Queue)
+                    │
+                    ▼
+        ┌───────────────────────┐
+        │   Unified Gateway     │
+        │  (FastAPI · 0.0.0.0)  │
+        │  Auth · Routing · SSE │
+        └───────────┬───────────┘
+                    │
+        ┌───────────▼───────────┐
+        │      Knight Core      │
+        │  ┌─────┐ ┌─────┐ ┌────┐│
+        │  │Plan │ │Mem  │ │Pipe││
+        │  └─────┘ └─────┘ └────┘│
+        │  ┌─────┐ ┌─────┐ ┌────┐│
+        │  │Agent│ │State│ │Obs ││
+        │  │Pool │ │Mgr  │     ││
+        │  └─────┘ └─────┘ └────┘│
+        └───────────┬───────────┘
+        ┌───────────┴───────────┐
+        ▼                       ▼
+   ┌─────────┐             ┌─────────┐
+   │ Claude  │             │  Kimi   │
+   │  Code   │             │  Code   │
+   └─────────┘             └─────────┘
 ```
+
+---
+
+## API Highlights
+
+- **Tasks** — `POST /api/v1/tasks`, `GET /api/v1/tasks/{id}`, `POST /api/v1/tasks/{id}/start`, `POST /api/v1/tasks/{id}/cancel`
+- **Streaming** — `GET /api/v1/tasks/{id}/stream` (Server-Sent Events for real-time progress)
+- **Agents** — `GET /api/v1/agents`, `GET /api/v1/agents/{id}`
+- **Sessions** — `POST /api/v1/sessions`, `POST /api/v1/sessions/{id}/messages`
+- **Stats & Health** — `GET /api/v1/stats`, `GET /health`
 
 ---
 
@@ -193,5 +252,5 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 <p align="center">
   <strong>Everyone builds their own agent army.</strong><br/>
-  <img src="assets/ivon.png" alt="Knight Mascot" width="40"/>
+  <img src="assets/lodo-main1.png" alt="Knight System" width="40"/>
 </p>
