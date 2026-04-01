@@ -50,3 +50,8 @@ out/
 web/.next/
 web/node_modules/
 web/out/
+
+# Temporary documents
+*.docx
+*.pdf
+~$*
