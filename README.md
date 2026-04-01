@@ -244,6 +244,34 @@ python3 launch.py web --web-port 3000
 
 ---
 
+## Acknowledgments
+
+Knight System stands on the shoulders of giants. We are deeply grateful to the open-source community and the pioneering projects that have shaped our architecture, engineering patterns, and understanding of agentic systems.
+
+### Agent Orchestration & Collaboration
+- **[Anthropic Claude Code](https://www.anthropic.com/)** — For demonstrating what a production-grade coding agent can achieve, and for the recovered source in `reference/cc-recovered-main` that informed our Tool abstraction, permission systems, and non-interactive CLI invocation patterns.
+- **[OpenClaw](https://openclaw.ai)** — For the elegant unified-gateway design philosophy. Knight's gateway-first architecture, multi-endpoint management, and local-first control plane are heavily inspired by OpenClaw's approach to personal AI assistants.
+- **[LangChain / LangGraph](https://www.langchain.com/)** — For advancing the state of agent orchestration frameworks and establishing patterns for chaining reasoning steps and tool use.
+- **[CrewAI](https://www.crewai.com/)** — For pioneering multi-agent role-based collaboration, which influenced our thinking about agent specialization and delegation.
+- **[AutoGPT](https://github.com/Significant-Gravitas/AutoGPT)** — For the early exploration of autonomous agent loops and self-directed task execution.
+
+### Memory & State Management
+- **[MemGPT / Letta](https://letta.com/)** — For groundbreaking work on memory management in LLM systems, particularly hierarchical memory (core vs. archival) and self-editing memory retrieval, which informed our state compression and context surfacing strategies.
+- **[Temporal](https://temporal.io/)** — For the durable execution paradigm. Our workflow engine, checkpointing, and saga-style compensation patterns draw directly from Temporal's workflow state machine and activity abstractions (`reference/temporal-sdk-python`).
+
+### Engineering & Infrastructure References
+- **[Celery](https://docs.celeryq.dev/)** — For battle-tested task queue patterns, DAG constructs (`group`, `chain`, `chord`), and result aggregation callbacks that shaped our task distribution layer.
+- **[Ray](https://www.ray.io/)** — For distributed Actor patterns and cluster scheduling concepts referenced in our agent pool design.
+- **[CopilotKit](https://www.copilotkit.ai/)** — For the AG-UI Protocol and generative UI patterns that influenced our frontend-agent interaction model.
+- **[shadcn/ui](https://ui.shadcn.com/)** — For the beautiful, composable React components that power our minimal web interface.
+
+### Model Providers
+- **[Anthropic](https://www.anthropic.com/)** — Claude models and the Model Context Protocol (MCP).
+- **[Moonshot AI](https://www.moonshot.cn/)** — Kimi models.
+- **[OpenAI](https://openai.com/)** — Codex and GPT models.
+
+---
+
 ## License
 
 MIT License — see [LICENSE](LICENSE) for details.

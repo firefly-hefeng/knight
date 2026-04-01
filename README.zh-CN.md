@@ -244,6 +244,34 @@ python3 launch.py web --web-port 3000
 
 ---
 
+## 致谢
+
+Knight System 站在巨人的肩膀上。我们深深感谢开源社区以及那些塑造了我们架构、工程模式和对智能体系统理解的先驱项目。
+
+### Agent 编排与协作
+- **[Anthropic Claude Code](https://www.anthropic.com/)** — 展示了生产级编程 Agent 所能达到的高度。`reference/cc-recovered-main` 中的逆向工程源码为我们的 Tool 抽象层、权限系统和非交互式 CLI 调用模式提供了重要参考。
+- **[OpenClaw](https://openclaw.ai)** — 其优雅的统一网关设计哲学深刻影响了 Knight。我们的网关优先架构、多端管理能力和本地优先控制平面都深受 OpenClaw 个人 AI 助手设计思路的启发。
+- **[LangChain / LangGraph](https://www.langchain.com/)** — 推动了 Agent 编排框架的发展，确立了推理步骤链式调用和工具使用的重要模式。
+- **[CrewAI](https://www.crewai.com/)** — 在多 Agent 角色协作方面做出了开创性工作，影响了我们对于 Agent 专业化与任务委派机制的思考。
+- **[AutoGPT](https://github.com/Significant-Gravitas/AutoGPT)** — 早期对自主 Agent 循环和自我驱动任务执行的勇敢探索，为整个行业铺平了道路。
+
+### 记忆与状态管理
+- **[MemGPT / Letta](https://letta.com/)** — 在 LLM 系统记忆管理方面做出了突破性贡献，尤其是分层记忆（核心记忆 vs 归档记忆）和自我编辑记忆检索机制，直接启发了我们的状态压缩与上下文 surfacing 策略。
+- **[Temporal](https://temporal.io/)** — 提出了「持久化执行」（Durable Execution）范式。我们的工作流引擎、检查点机制和 Saga 补偿模式直接借鉴了 Temporal 的工作流状态机与 Activity 抽象（`reference/temporal-sdk-python`）。
+
+### 工程与基础设施参考
+- **[Celery](https://docs.celeryq.dev/)** — 久经考验的任务队列模式、DAG 构造（`group`、`chain`、`chord`）以及结果聚合回调机制，塑造了我们的任务分发层设计。
+- **[Ray](https://www.ray.io/)** — 分布式 Actor 模式和集群调度概念为我们的 Agent 池设计提供了重要参考。
+- **[CopilotKit](https://www.copilotkit.ai/)** — AG-UI 协议和生成式 UI 模式影响了我们的前端与 Agent 交互模型。
+- **[shadcn/ui](https://ui.shadcn.com/)** — 精美、可组合 React 组件库，为我们的极简 Web 界面提供了坚实基础。
+
+### 模型提供方
+- **[Anthropic](https://www.anthropic.com/)** — Claude 系列模型及模型上下文协议（MCP）。
+- **[Moonshot AI](https://www.moonshot.cn/)** — Kimi 系列模型。
+- **[OpenAI](https://openai.com/)** — Codex 及 GPT 系列模型。
+
+---
+
 ## 许可证
 
 MIT License — 详见 [LICENSE](LICENSE)。
