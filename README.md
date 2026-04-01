@@ -112,7 +112,7 @@ Knight excels wherever complexity outstrips the capacity of a single agent:
 
 ---
 
-## Frontend Preview
+## Frontend Dashboard
 
 ![Frontend Agent Cluster Management](docs/pictures/1.png)
 

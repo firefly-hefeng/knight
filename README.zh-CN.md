@@ -112,7 +112,7 @@ Knight 在以下场景中表现卓越：任何单一 Agent 的能力边界被复
 
 ---
 
-## 前端预览
+## 前端主页
 
 ![前端管理 Agent 集群](docs/pictures/1.png)
 
@@ -263,12 +263,12 @@ curl http://localhost:8080/api/v1/tasks/{task_id}/stream \
 
 ## 致谢
 
-Knight System 站在巨人的肩膀上。我们架构、工程模式和对智能体系统理解在很大一部分都收到优秀的开源项目的启发和借鉴了其中很多出色的设计。
+Knight System 站在巨人的肩膀上。我们的架构、工程模式和对智能体系统的理解在很大一部分上都受到优秀的开源项目的启发，并借鉴了其中很多出色的设计。
 
 ### Agent 编排与协作
 - **[OpenClaw](https://openclaw.ai)** — 其优雅的统一网关设计哲学和 agent 主要探索能力的开发深刻影响了 Knight。我们的网关优先架构、多端管理能力和本地优先控制平面都深受 OpenClaw 个人 AI 助手设计思路的启发。
-- **[LangChain / LangGraph](https://www.langchain.com/)** — 在我们的推理步骤链式调用和工具使用的最主要的模式。
-- **[CrewAI](https://www.crewai.com/)** — 在多 Agent 角色协作方面的思想，影响了我们对于 Agent 专业化与任务委派机制的思考。
+- **[LangChain / LangGraph](https://www.langchain.com/)** — 我们推理步骤链式调用和工具使用的最主要模式。
+- **[CrewAI](https://www.crewai.com/)** — 在多 Agent 角色协作方面的招募队员思想，影响了我们对于 Agent 专业化与任务委派机制的设计。
 - **[AutoGPT](https://github.com/Significant-Gravitas/AutoGPT)** — 早期对自主 Agent 循环和自我驱动任务执行的勇敢探索，也是我们工程化学习的重要目标。
 
 ### 记忆与状态管理
