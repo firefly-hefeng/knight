@@ -16,6 +16,8 @@ class TaskStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    WAITING_FOR_FEEDBACK = "waiting_for_feedback"
+    EVALUATING = "evaluating"
 
 
 class AgentType(str, Enum):
@@ -91,7 +93,12 @@ class TaskResponse(BaseModel):
     session_id: Optional[str] = None
     parent_task_id: Optional[str] = None
     sub_tasks: List[str] = Field(default_factory=list)
-    
+
+    # 编排（可选，仅编排模式下填充）
+    dag: Optional[Dict[str, Any]] = Field(default=None, description="TaskDAG JSON")
+    feedback_request: Optional[Dict[str, Any]] = Field(default=None, description="待处理的反馈请求")
+    orchestration_stats: Optional[Dict[str, Any]] = Field(default=None, description="编排统计")
+
     class Config:
         populate_by_name = True
 
@@ -133,7 +140,7 @@ class Message(BaseModel):
 
 class StreamChunk(BaseModel):
     """流式响应块"""
-    type: Literal["text", "tool_use", "tool_result", "progress", "error", "done"]
+    type: Literal["text", "tool_use", "tool_result", "progress", "error", "done", "plan", "evaluation", "feedback_request", "replan"]
     content: str
     task_id: Optional[str] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
@@ -168,6 +175,36 @@ class ApiResponse(BaseModel):
             error_code=code, 
             request_id=request_id or datetime.now().strftime("%Y%m%d%H%M%S%f")
         )
+
+
+# ==================== 反馈模型 ====================
+
+class SubmitFeedbackRequest(BaseModel):
+    """提交人类反馈"""
+    action: str = Field(..., description="approve | reject | modify | abort")
+    message: Optional[str] = Field(default=None, description="反馈内容")
+    modifications: Optional[Dict[str, Any]] = Field(default=None, description="计划修改")
+
+
+class FeedbackRequestResponse(BaseModel):
+    """反馈请求响应"""
+    task_id: str
+    checkpoint_type: str
+    question: str
+    context: str = ""
+    options: List[str] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+class DAGResponse(BaseModel):
+    """DAG 响应"""
+    id: str
+    goal: str
+    subtasks: List[Dict[str, Any]] = Field(default_factory=list)
+    edges: List[List[str]] = Field(default_factory=list)
+    checkpoints: List[str] = Field(default_factory=list)
+    version: int = 1
+    progress: int = 0
 
 
 # ==================== 网关特定模型 ====================

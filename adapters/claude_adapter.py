@@ -40,13 +40,30 @@ class ClaudeAdapter:
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=work_dir
+                cwd=work_dir,
+                start_new_session=True,
             )
 
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(),
-                timeout=timeout
-            )
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    proc.communicate(),
+                    timeout=timeout
+                )
+            except asyncio.TimeoutError:
+                # 杀死进程组（包含子进程）
+                import signal as sig
+                try:
+                    os.killpg(os.getpgid(proc.pid), sig.SIGTERM)
+                except (ProcessLookupError, OSError):
+                    pass
+                try:
+                    await asyncio.wait_for(proc.wait(), timeout=2)
+                except asyncio.TimeoutError:
+                    try:
+                        os.killpg(os.getpgid(proc.pid), sig.SIGKILL)
+                    except (ProcessLookupError, OSError):
+                        pass
+                return TaskResult(success=False, output='', error='Timeout')
 
             output = stdout.decode().strip()
             return TaskResult(

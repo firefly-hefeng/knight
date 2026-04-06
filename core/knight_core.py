@@ -5,6 +5,7 @@ Knight Core - 统一管理层
 然后由 KnightCore 分配给具体的 Agent
 """
 import asyncio
+import os
 import uuid
 import logging
 from typing import Optional, List, Dict, Any, AsyncGenerator
@@ -23,6 +24,16 @@ from .signal import Signal
 from .file_cache import FileStateCache
 from .profiler import QueryProfiler
 from .command_queue import CommandQueue
+from .observability import ObservabilityManager
+from .evaluator import QualityEvaluator
+from .context_manager import ContextManager
+from .orchestrator import OrchestratorLoop
+from .iteration_engine import IterationEngine
+from .feedback import FeedbackManager, FeedbackRequest, FeedbackResponse
+from .task_dag import OrchestrationConfig, TaskDAG
+from .agent_registry import AgentDefinition
+from .agent_memory import AgentMemory
+from .verification_agent import VerificationAgent
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +100,36 @@ class KnightCore:
         self.command_queue = CommandQueue()
         self.task_status_changed = Signal[str]()
         self.agent_status_changed = Signal[str]()
+        self.observability = ObservabilityManager(self.state)
+
+        # 编排系统（Phase 2）
+        self.context_mgr = ContextManager(self.state, self.agent_pool)
+        self.evaluator = QualityEvaluator(self.agent_pool)
+        self.iteration_engine = IterationEngine(self.agent_pool, self.context_mgr)
+        self.orchestrator = OrchestratorLoop(
+            agent_pool=self.agent_pool,
+            state=self.state,
+            context_mgr=self.context_mgr,
+            evaluator=self.evaluator,
+            task_signal=self.task_status_changed,
+        )
+        self.orchestrator.iteration_engine = self.iteration_engine  # Phase 3 注入
+        self.feedback_mgr = FeedbackManager(self.state, self.state.persistence)
+        self.orchestrator.feedback_mgr = self.feedback_mgr  # Phase 4 注入
+        self.USE_ORCHESTRATOR = True  # 特性开关：False 回退到旧的直接执行
+
+        # Phase C: 验证 Agent + 记忆系统
+        self.verifier = VerificationAgent(self.agent_pool)
+        self.orchestrator.verifier = self.verifier       # 注入验证器
+        self.memory = AgentMemory()                      # 全局记忆（无项目目录时仅 user scope）
+
+        # Phase C3: 成本上限（USD），超出后拒绝新任务。0 = 无限制
+        self.cost_ceiling_usd: float = float(os.environ.get("KNIGHT_COST_CEILING", "0"))
+
+        # 崩溃恢复：检测卡住的任务
+        recovered = self.state.recover_stale_tasks()
+        if recovered:
+            logger.warning(f"Crash recovery: {len(recovered)} stale tasks marked failed: {recovered}")
 
         # 会话管理
         self._sessions: Dict[str, Session] = {}
@@ -120,7 +161,16 @@ class KnightCore:
             TaskResponse: 创建的任务信息
         """
         task_id = str(uuid.uuid4())[:8]
-        
+
+        # 成本上限检查
+        if self.cost_ceiling_usd > 0:
+            current_cost = self.agent_pool.registry.get_total_cost()
+            if current_cost >= self.cost_ceiling_usd:
+                raise ValueError(
+                    f"Cost ceiling reached (${current_cost:.2f} / ${self.cost_ceiling_usd:.2f}). "
+                    f"Set KNIGHT_COST_CEILING=0 to disable."
+                )
+
         # 自动选择 Agent
         agent_type = request.agent_type
         if agent_type == AgentType.AUTO:
@@ -129,7 +179,7 @@ class KnightCore:
         # 创建任务状态
         task_state = TaskState(
             task_id=task_id,
-            status=TaskStatus.PENDING,
+            status=TaskStatus.PENDING.value,
             prompt=request.description,
             agent_type=agent_type.value,
             work_dir=request.work_dir
@@ -163,10 +213,11 @@ class KnightCore:
         task = self.state.get_task(task_id)
         if not task:
             raise ValueError(f"Task {task_id} not found")
-        
-        if task.status != TaskStatus.PENDING:
-            raise ValueError(f"Task {task_id} is not pending")
-        
+
+        # 原子转换：仅当 pending 时才启动（防止并发重复启动）
+        if not self.state.try_transition(task_id, TaskStatus.PENDING.value, 'running'):
+            raise ValueError(f"Task {task_id} is not pending (current: {task.status})")
+
         # 异步执行任务
         asyncio.create_task(self._execute_task(task_id))
         
@@ -174,12 +225,35 @@ class KnightCore:
     
     async def _execute_task(self, task_id: str):
         """实际执行任务"""
+        self.observability.record_task_start(task_id)
         try:
-            await self.coordinator.execute_task(task_id)
-            self._stats["completed_tasks"] += 1
+            if self.USE_ORCHESTRATOR:
+                task = self.state.get_task(task_id)
+                config = OrchestrationConfig()
+                await self.orchestrator.run(
+                    goal=task.prompt,
+                    work_dir=task.work_dir,
+                    config=config,
+                    parent_task_id=task_id,
+                )
+                # orchestrator 内部已更新状态，重新读取判断结果
+                task = self.state.get_task(task_id)
+                if task.status == "completed":
+                    self._stats["completed_tasks"] += 1
+                    self.observability.record_task_complete(task_id)
+                else:
+                    self._stats["failed_tasks"] += 1
+                    self.observability.record_task_fail(task_id)
+            else:
+                await self.coordinator.execute_task(task_id)
+                self._stats["completed_tasks"] += 1
+                self.observability.record_task_complete(task_id)
+            self.task_status_changed.emit(task_id)
         except Exception as e:
             logger.error(f"Task {task_id} failed: {e}")
             self._stats["failed_tasks"] += 1
+            self.observability.record_task_fail(task_id)
+            self.task_status_changed.emit(task_id)
     
     async def stream_task(self, task_id: str) -> AsyncGenerator[StreamChunk, None]:
         """
@@ -196,13 +270,16 @@ class KnightCore:
             yield StreamChunk(type="error", content=f"Task {task_id} not found")
             return
         
-        # 启动任务
-        if task.status == TaskStatus.PENDING:
-            await self.start_task(task_id)
-        
+        # 启动任务（原子转换防止重复启动）
+        if task.status == TaskStatus.PENDING.value:
+            try:
+                await self.start_task(task_id)
+            except ValueError:
+                pass  # 已被其他调用者启动，继续监听
+
         # 流式监听状态变化
         last_logs = 0
-        while task.status in [TaskStatus.PENDING, TaskStatus.RUNNING]:
+        while task.status in [TaskStatus.PENDING.value, TaskStatus.RUNNING.value]:
             # 获取新日志
             if len(task.logs) > last_logs:
                 for log in task.logs[last_logs:]:
@@ -225,14 +302,14 @@ class KnightCore:
             task = self.state.get_task(task_id)  # 刷新状态
         
         # 最终结果
-        if task.status == TaskStatus.COMPLETED:
+        if task.status == TaskStatus.COMPLETED.value:
             yield StreamChunk(
                 type="done",
                 content=task.result or "",
                 task_id=task_id,
                 metadata={"status": "completed"}
             )
-        elif task.status == TaskStatus.FAILED:
+        elif task.status == TaskStatus.FAILED.value:
             yield StreamChunk(
                 type="error",
                 content=task.error or "Unknown error",
@@ -258,7 +335,7 @@ class KnightCore:
             # 过滤
             if session_id and task.task_id not in self._get_session_tasks(session_id):
                 continue
-            if status and task.status != status:
+            if status and task.status != status.value:
                 continue
             if agent_type and task.agent_type != agent_type.value:
                 continue
@@ -278,7 +355,7 @@ class KnightCore:
         # 更新状态
         self.state.update_status(
             request.task_id,
-            TaskStatus.CANCELLED,
+            TaskStatus.CANCELLED.value,
             error=f"Cancelled by user: {request.reason or 'No reason'}"
         )
         
@@ -289,10 +366,10 @@ class KnightCore:
     async def list_agents(self) -> List[AgentInfo]:
         """列出所有 Agent 状态"""
         # 计算每个 agent 的负载
-        claude_busy = sum(1 for t in self.state.tasks.values() 
-                         if t.status == TaskStatus.RUNNING and t.agent_type == "claude")
-        kimi_busy = sum(1 for t in self.state.tasks.values() 
-                       if t.status == TaskStatus.RUNNING and t.agent_type == "kimi")
+        claude_busy = sum(1 for t in self.state.tasks.values()
+                         if t.status == TaskStatus.RUNNING.value and t.agent_type == "claude")
+        kimi_busy = sum(1 for t in self.state.tasks.values()
+                       if t.status == TaskStatus.RUNNING.value and t.agent_type == "kimi")
         
         return [
             AgentInfo(
@@ -301,8 +378,8 @@ class KnightCore:
                 type=AgentType.CLAUDE,
                 status="busy" if claude_busy > 0 else "idle",
                 capabilities=["coding", "analysis", "writing", "long_context"],
-                current_task_id=next((t.task_id for t in self.state.tasks.values() 
-                                     if t.status == TaskStatus.RUNNING and t.agent_type == "claude"), None),
+                current_task_id=next((t.task_id for t in self.state.tasks.values()
+                                     if t.status == TaskStatus.RUNNING.value and t.agent_type == "claude"), None),
                 queue_length=claude_busy
             ),
             AgentInfo(
@@ -311,8 +388,8 @@ class KnightCore:
                 type=AgentType.KIMI,
                 status="busy" if kimi_busy > 0 else "idle",
                 capabilities=["search", "translation", "fast_response"],
-                current_task_id=next((t.task_id for t in self.state.tasks.values() 
-                                     if t.status == TaskStatus.RUNNING and t.agent_type == "kimi"), None),
+                current_task_id=next((t.task_id for t in self.state.tasks.values()
+                                     if t.status == TaskStatus.RUNNING.value and t.agent_type == "kimi"), None),
                 queue_length=kimi_busy
             )
         ]
@@ -402,48 +479,110 @@ class KnightCore:
     
     def _to_task_response(self, task: TaskState) -> TaskResponse:
         """转换 TaskState 为 TaskResponse"""
-        # 生成步骤
-        steps = [
-            TaskStep(
-                id="1",
-                name="Initialize",
-                status=TaskStatus.COMPLETED if task.status in [TaskStatus.RUNNING, TaskStatus.COMPLETED, TaskStatus.FAILED] else TaskStatus.PENDING,
-                agent=task.agent_type
-            ),
-            TaskStep(
-                id="2",
-                name="Execute",
-                status=TaskStatus.RUNNING if task.status == TaskStatus.RUNNING else (
-                    TaskStatus.COMPLETED if task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED] else TaskStatus.PENDING
-                ),
-                agent=task.agent_type
-            ),
-            TaskStep(
-                id="3",
-                name="Complete",
-                status=TaskStatus.COMPLETED if task.status == TaskStatus.COMPLETED else (
-                    TaskStatus.FAILED if task.status == TaskStatus.FAILED else TaskStatus.PENDING
-                ),
-                agent=task.agent_type
-            )
-        ]
-        
+        # 如果有 DAG，使用真实子任务作为步骤
+        dag_data = None
+        if task.dag_json:
+            try:
+                dag = TaskDAG.from_json(task.dag_json)
+                valid_statuses = {s.value for s in TaskStatus}
+                steps = [
+                    TaskStep(
+                        id=st.id,
+                        name=st.description[:80],
+                        status=TaskStatus(st.status) if st.status in valid_statuses else TaskStatus.PENDING,
+                        agent=st.agent_type,
+                        result=st.result_summary,
+                    )
+                    for st in dag.subtasks.values()
+                ]
+                dag_data = {
+                    "id": dag.id, "goal": dag.goal,
+                    "subtasks": [st.to_dict() for st in dag.subtasks.values()],
+                    "edges": dag.edges, "checkpoints": dag.checkpoints,
+                    "version": dag.version, "progress": dag.progress,
+                }
+            except Exception:
+                steps = self._default_steps(task)
+        else:
+            steps = self._default_steps(task)
+
         return TaskResponse(
             task_id=task.task_id,
             name=f"Task {task.task_id}",
             description=task.prompt,
-            status=task.status,
+            status=TaskStatus(task.status),
             agent_type=AgentType(task.agent_type),
             work_dir=task.work_dir,
             created_at=task.created_at,
             updated_at=task.updated_at,
-            started_at=task.updated_at if task.status != TaskStatus.PENDING else None,
+            started_at=task.updated_at if task.status != 'pending' else None,
             result=task.result,
             error=task.error,
             progress=task.progress,
             steps=steps,
-            logs=task.logs[-10:] if task.logs else []
+            logs=task.logs[-10:] if task.logs else [],
+            dag=dag_data,
         )
+
+    def _default_steps(self, task: TaskState) -> list:
+        """降级：无 DAG 时的默认 3 步骤"""
+        return [
+            TaskStep(
+                id="1", name="Initialize",
+                status=TaskStatus.COMPLETED if task.status in ['running', 'completed', 'failed'] else TaskStatus.PENDING,
+                agent=task.agent_type
+            ),
+            TaskStep(
+                id="2", name="Execute",
+                status=TaskStatus.RUNNING if task.status == 'running' else (
+                    TaskStatus.COMPLETED if task.status in ['completed', 'failed'] else TaskStatus.PENDING
+                ),
+                agent=task.agent_type
+            ),
+            TaskStep(
+                id="3", name="Complete",
+                status=TaskStatus.COMPLETED if task.status == 'completed' else (
+                    TaskStatus.FAILED if task.status == 'failed' else TaskStatus.PENDING
+                ),
+                agent=task.agent_type
+            )
+        ]
+
+    async def get_task_dag(self, task_id: str) -> Optional[dict]:
+        """获取任务的 DAG 执行计划"""
+        task = self.state.get_task(task_id)
+        if not task or not task.dag_json:
+            return None
+        try:
+            dag = TaskDAG.from_json(task.dag_json)
+            return {
+                "id": dag.id, "goal": dag.goal,
+                "subtasks": [st.to_dict() for st in dag.subtasks.values()],
+                "edges": dag.edges, "checkpoints": dag.checkpoints,
+                "version": dag.version, "progress": dag.progress,
+            }
+        except Exception:
+            return None
+
+    async def submit_feedback(self, task_id: str, action: str, message: str = "") -> bool:
+        """提交人类反馈"""
+        response = FeedbackResponse(task_id=task_id, action=action, message=message)
+        await self.feedback_mgr.submit_feedback(response)
+        return True
+
+    async def get_pending_feedback(self, task_id: str) -> Optional[dict]:
+        """获取待处理的反馈请求"""
+        req = self.feedback_mgr.get_pending_feedback(task_id)
+        if not req:
+            return None
+        return {
+            "task_id": req.task_id,
+            "checkpoint_type": req.checkpoint_type,
+            "question": req.question,
+            "context": req.context,
+            "options": req.options,
+            "created_at": req.created_at.isoformat(),
+        }
     
     async def _associate_task_with_session(self, session_id: str, task_id: str):
         """关联任务到会话"""
@@ -473,13 +612,76 @@ class KnightCore:
     
     def get_stats(self) -> Dict[str, Any]:
         """获取统计数据"""
+        registry_stats = self.agent_pool.get_registry_stats()
         return {
             **self._stats,
-            "pending_tasks": len([t for t in self.state.tasks.values() if t.status == TaskStatus.PENDING]),
-            "running_tasks": len([t for t in self.state.tasks.values() if t.status == TaskStatus.RUNNING]),
-            "completed_tasks": len([t for t in self.state.tasks.values() if t.status == TaskStatus.COMPLETED]),
-            "failed_tasks": len([t for t in self.state.tasks.values() if t.status == TaskStatus.FAILED]),
+            "pending_tasks": len([t for t in self.state.tasks.values() if t.status == 'pending']),
+            "running_tasks": len([t for t in self.state.tasks.values() if t.status == 'running']),
+            "completed_tasks": len([t for t in self.state.tasks.values() if t.status == 'completed']),
+            "failed_tasks": len([t for t in self.state.tasks.values() if t.status == 'failed']),
             "total_tasks_in_db": len(self.state.tasks),
             "file_cache": self.file_cache.get_stats(),
-            "command_queue_length": self.command_queue.length
+            "command_queue_length": self.command_queue.length,
+            "observability": self.observability.get_summary(),
+            "agents": registry_stats,
+            "cost_ceiling_usd": self.cost_ceiling_usd,
+            "memory": self.memory.get_stats(),
         }
+
+    # ==================== Agent 注册 ====================
+
+    def register_agent(self, config: dict) -> None:
+        """动态注册新 Agent"""
+        defn = AgentDefinition(**config)
+        self.agent_pool.register_agent(defn)
+
+    def unregister_agent(self, name: str) -> bool:
+        """注销 Agent"""
+        return self.agent_pool.unregister_agent(name)
+
+    def get_registered_agents(self) -> List[dict]:
+        """获取所有注册的 Agent 定义"""
+        return [
+            {
+                "name": d.name,
+                "command": d.command,
+                "concurrency": d.concurrency,
+                "capabilities": d.capabilities,
+                "enabled": d.enabled,
+                "description": d.description,
+                "healthy": self.agent_pool.registry.get_health(d.name).healthy
+                    if self.agent_pool.registry.get_health(d.name) else False,
+            }
+            for d in self.agent_pool.list_registered()
+        ]
+
+    async def check_agent_health(self, name: Optional[str] = None) -> Dict[str, bool]:
+        """手动触发健康检查"""
+        if name:
+            ok = await self.agent_pool.check_health(name)
+            return {name: ok}
+        return await self.agent_pool.registry.check_all_health()
+
+    # ==================== 记忆系统 ====================
+
+    def add_memory(self, content: str, scope: str = "project",
+                   tags: Optional[List[str]] = None, source: str = "") -> None:
+        """添加记忆"""
+        self.memory.add(content, scope=scope, tags=tags, source=source)
+
+    def get_memories(self, scope: Optional[str] = None) -> List[dict]:
+        """获取记忆"""
+        entries = self.memory.get_all(scope)
+        return [
+            {"content": e.content, "scope": e.scope, "tags": e.tags, "source": e.source}
+            for e in entries
+        ]
+
+    def search_memories(self, query: str) -> List[dict]:
+        """搜索记忆"""
+        entries = self.memory.search(query)
+        return [
+            {"content": e.content, "scope": e.scope, "tags": e.tags, "source": e.source}
+            for e in entries
+        ]
+
