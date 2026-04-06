@@ -32,6 +32,9 @@ logs/
 # Reference
 reference/
 
+# Archived docs
+docs/archive/
+
 # OS
 .DS_Store
 Thumbs.db
