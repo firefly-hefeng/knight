@@ -5,7 +5,9 @@ HTTP Gateway - 直接暴露 Knight Core API
 只是 Gateway 接收 JSON，Web 前端接收网页请求
 """
 import asyncio
+import hmac
 import logging
+import os
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Depends, Header, Query
@@ -70,10 +72,17 @@ class HTTPGateway:
             version="1.0.0"
         )
         
-        # CORS
+        # CORS: configurable via KNIGHT_CORS_ORIGINS env var (comma-separated)
+        # Default: localhost dev origins. Set to "*" to allow all (not recommended for production).
+        cors_env = os.environ.get("KNIGHT_CORS_ORIGINS", "")
+        cors_origins = (
+            [o.strip() for o in cors_env.split(",") if o.strip()]
+            if cors_env
+            else ["http://localhost:3000", "http://localhost:3001", "http://localhost:8080"]
+        )
         app.add_middleware(
             CORSMiddleware,
-            allow_origins=["*"],
+            allow_origins=cors_origins,
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
@@ -95,7 +104,7 @@ class HTTPGateway:
             else:
                 token = authorization
             
-            if token != self.api_key:
+            if not hmac.compare_digest(token, self.api_key):
                 raise HTTPException(status_code=403, detail="Invalid API key")
             
             return True
