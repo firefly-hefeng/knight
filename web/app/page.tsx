@@ -70,7 +70,7 @@ export default function Home() {
 
               <div className="flex flex-wrap gap-4">
                 <Link href="/tasks">
-                  <Button variant="primary" size="lg" className="gap-2 bg-[#D4853B] hover:bg-[#E8A55C] text-[#FDF6E3] border-[#B0682A]">
+                  <Button variant="default" size="lg" className="gap-2 bg-[#D4853B] hover:bg-[#E8A55C] text-[#FDF6E3] border-[#B0682A]">
                     Start Building
                     <ArrowRight className="w-4 h-4" />
                   </Button>
@@ -192,7 +192,7 @@ export default function Home() {
                 ))}
               </ul>
               <Link href="/tasks">
-                <Button variant="primary" className="gap-2 mt-4 bg-[#D4853B] hover:bg-[#E8A55C] text-[#FDF6E3]">
+                <Button variant="default" className="gap-2 mt-4 bg-[#D4853B] hover:bg-[#E8A55C] text-[#FDF6E3]">
                   View Task Board
                   <ArrowRight className="w-4 h-4" />
                 </Button>
